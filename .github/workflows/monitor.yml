@@ -16,71 +16,64 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install -r requirements.txt
-      - name: 🔬 v3 심층 테스트
+      - name: 🔬 토큰 추출 + v3 재시도
         run: |
           python3 - << 'PYEOF' | tee api_test.txt
-          import requests, json, time
-          H = {
-            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
-            "Referer": "https://www.zigbang.com/",
-            "Accept": "application/json, text/plain, */*",
-            "Accept-Language": "ko-KR,ko;q=0.9",
-            "Origin": "https://www.zigbang.com",
-          }
-          BASE = "https://apis.zigbang.com"
+          import requests, re, time, json
 
-          tests = [
-            # v3 POST 시도
-            ("v3 POST",        "POST", f"{BASE}/v3/items",
-             {"domain":"zigbang","geohash":"wydm","service_type_eq":"원룸"}, None),
-            # oneroomCode 기반 엔드포인트
-            ("v3 oneroomcode", "GET",  f"{BASE}/v3/items/list-by-oneroomcode",
-             {"domain":"zigbang","oneroomCodes[]":"wydm","checkAnyItemWithoutFilters":"true"}, None),
-            # 더 짧은 geohash
-            ("v3 geohash=wy",  "GET",  f"{BASE}/v3/items",
-             {"domain":"zigbang","geohash":"wy","service_type_eq":"원룸"}, None),
-            # v3 with needHasNoFiltered
-            ("v3+filtered",    "GET",  f"{BASE}/v3/items",
-             {"domain":"zigbang","geohash":"wydm","service_type_eq":"원룸","needHasNoFiltered":"true"}, None),
-            # 직방 내부 API 시도
-            ("직방 search",    "GET",  f"{BASE}/v2/search",
-             {"leaseYn":"N","q":"하남시","serviceType":"원룸"}, None),
-            # 직방 복합단지 조회
-            ("직방 complexes", "GET",  f"{BASE}/v2/complexes/markers",
-             {"domain":"zigbang","geohash":"wydm"}, None),
-            # v2 원룸 최신 geohash 방식
-            ("v2 원룸 세분화",  "GET",  f"{BASE}/v2/items",
-             {"domain":"zigbang","zoom":"14","sales_type_in":"전세","geohash":"wydm",
-              "service_type_eq":"원룸","deposit_gteq":"0","rent_gteq":"0"}, None),
+          S = requests.Session()
+          S.headers.update({"User-Agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15","Referer":"https://www.zigbang.com/"})
+
+          # 1. 직방 메인 페이지에서 토큰/설정값 추출
+          print("=== 직방 페이지 토큰 탐색 ===")
+          try:
+            r = S.get("https://www.zigbang.com/", timeout=8)
+            print(f"메인 페이지: {r.status_code}")
+            # 토큰 패턴 검색
+            for pattern in [r'token["\']+:\s*["\']+([A-Za-z0-9._-]{20,})', r'apiKey["\']+:\s*["\']+([A-Za-z0-9._-]{10,})', r'accessToken["\']+:\s*["\']+([A-Za-z0-9._-]{20,})']:
+              matches = re.findall(pattern, r.text[:50000])
+              if matches:
+                print(f"  패턴 발견 ({pattern[:30]}...): {matches[:2]}")
+            # Set-Cookie 확인
+            print(f"  쿠키: {dict(r.cookies)}")
+          except Exception as e:
+            print(f"  오류: {e}")
+
+          # 2. 직방 API 직접 요청 (쿠키 포함)
+          print("\n=== 직방 v3 쿠키 포함 시도 ===")
+          tests_v3 = [
+            ("v3 원룸 기본",     {"domain":"zigbang","geohash":"wydm","service_type_eq":"원룸","zoom":14}),
+            ("v3 원룸 wyd",      {"domain":"zigbang","geohash":"wyd","service_type_eq":"원룸","zoom":11}),
+            ("v3 원룸 checkAll", {"domain":"zigbang","geohash":"wydm","service_type_eq":"원룸","checkAnyItemWithoutFilters":"true"}),
+            ("v3 빌라 checkAll", {"domain":"zigbang","geohash":"wydm","service_type_eq":"빌라","checkAnyItemWithoutFilters":"true"}),
+            ("v3 아파트 check",  {"domain":"zigbang","geohash":"wydm","service_type_eq":"아파트","checkAnyItemWithoutFilters":"true"}),
           ]
-
-          for name, method, url, params, body in tests:
+          for name, params in tests_v3:
             try:
-              if method == "POST":
-                r = requests.post(url, json=params, headers=H, timeout=8)
-              else:
-                r = requests.get(url, params=params, headers=H, timeout=8)
-              cnt = 0
-              sample = ""
-              try:
-                j = r.json()
-                for key in ("items","clusters","complexes","result","data"):
-                  if key in j and isinstance(j[key], list):
-                    cnt = len(j[key])
-                    if cnt > 0:
-                      sample = f" | 샘플키: {list(j[key][0].keys())[:6]}"
-                    break
-              except: pass
-              print(f"[{r.status_code}|{cnt}건] {name}{sample}")
+              r = S.get("https://apis.zigbang.com/v3/items", params=params, timeout=8)
+              j = r.json()
+              cnt = len(j.get("items",[]))
+              print(f"[{r.status_code}|{cnt}건] {name}")
               if cnt > 0:
-                j = r.json()
-                for key in ("items","clusters","complexes","result","data"):
-                  if key in j and j[key]:
-                    print(f"  → {j[key][0]}")
-                    break
+                print(f"  샘플: {j['items'][0]}")
             except Exception as e:
-              print(f"[ERR] {name}: {str(e)[:100]}")
-            time.sleep(0.3)
+              print(f"[ERR] {name}: {e}")
+            time.sleep(0.2)
+
+          # 3. 호갱노노 API 테스트
+          print("\n=== 호갱노노 API 테스트 ===")
+          hgnn_tests = [
+            "https://hogangnono.com/api/v5/complexes?cortarNo=4179010900&tradeType=전세",
+            "https://hogangnono.com/api/complexes?lat=37.5596&lng=127.1935",
+            "https://hogangnono.com/api/v1/items?lat=37.5596&lng=127.1935&zoom=13",
+          ]
+          for url in hgnn_tests:
+            try:
+              r = requests.get(url, timeout=8, headers={"User-Agent":"Mozilla/5.0","Referer":"https://hogangnono.com/"})
+              print(f"[{r.status_code}] {url.split('?')[0].split('/')[-2:]}")
+              print(f"  {r.text[:150]}")
+            except Exception as e:
+              print(f"[ERR] {url}: {e}")
           PYEOF
       - name: 💾 결과 저장
         if: always()
@@ -88,5 +81,5 @@ jobs:
           git config user.email "actions@github.com"
           git config user.name "Actions"
           git add api_test.txt 2>/dev/null || true
-          git diff --staged --quiet || git commit -m "log: v3 deep test [skip ci]"
+          git diff --staged --quiet || git commit -m "log: token test [skip ci]"
           git push || true
