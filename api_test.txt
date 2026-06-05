@@ -1,10 +1,8 @@
-[200|0건] v3 기본(wydm)
-[200|0건] v3 기본(wyd)
-[200|0건] v3 원룸
-[200|0건] v3 아파트
-[200|0건] v3 빌라
-[200|0건] v3 전세
-[200|0건] v3 전세+원룸
-[200|0건] v3 원룸 서울좌표
-[200|0건] v3 no-domain
-[404|0건] v2 원룸 zoom없음
+[404|0건] v3 POST
+[404|0건] v3 oneroomcode
+[200|0건] v3 geohash=wy
+[200|0건] v3+filtered
+[200|49건] 직방 search | 샘플키: ['id', 'type', 'name', 'hint', 'description', 'lat']
+  → {'id': 8263, 'type': 'address', 'name': '하남시', 'hint': '', 'description': '경기도 하남시', 'lat': 37.5393028259277, 'lng': 127.214874267578, 'zoom': 7, 'polygon': [], '_score': None, '_source': {'name_length': 3, 'local1': '경기도', 'local2': '하남시', 'local3': None, 'web_level': 14, 'web_lat': 37.5393028259277, 'web_lng': 127.214874267578, 'app_level': 13, 'app_lat': 37.5393028259277, 'app_lng': 127.214874267578, '법정동코드': '4145000000'}, 'zoom_level': {'google': 13, 'daum': 6}, 'zoom_level_v2': {'app': 8, 'web': 6}}
+[404|0건] 직방 complexes
+[404|0건] v2 원룸 세분화
