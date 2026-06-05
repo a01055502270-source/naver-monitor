@@ -1,4 +1,4 @@
-name: 🏡 부동산 모니터 (자동 스캔)
+name: "🏡 부동산 모니터 (자동 스캔)"
 
 on:
   schedule:
@@ -23,33 +23,15 @@ jobs:
       - name: 📦 의존성 설치
         run: pip install -r requirements.txt
 
-      - name: 🧪 직방 API 연결 확인
-        run: |
-          python3 -c "
-          import requests, json
-          r = requests.get(
-            'https://apis.zigbang.com/v2/items',
-            params={'deposit_gteq':0,'domain':'zigbang','geohash':'wydm7',
-                    'needHasNoFiltered':'true','rent_gteq':0,
-                    'sales_type_in':'전세|월세','service_type_eq':'아파트'},
-            timeout=15)
-          items = r.json().get('items', [])
-          print(f'직방 API 상태: HTTP {r.status_code}')
-          print(f'수신 매물 수: {len(items)}건')
-          if items:
-              print(f'샘플 키: {list(items[0].keys())}')
-              print(f'샘플 값: {items[0]}')
-          "
-
       - name: 🔍 매물 스캔
         env:
-          SUPABASE_URL:         \${{ secrets.SUPABASE_URL }}
-          SUPABASE_SERVICE_KEY: \${{ secrets.SUPABASE_SERVICE_KEY }}
-          TELEGRAM_BOT_TOKEN:   \${{ secrets.TELEGRAM_BOT_TOKEN }}
-          TELEGRAM_CHAT_ID:     \${{ secrets.TELEGRAM_CHAT_ID }}
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          if [ -n "\${{ github.event.inputs.region }}" ]; then
-            python main.py --region "\${{ github.event.inputs.region }}"
+          if [ -n "${{ github.event.inputs.region }}" ]; then
+            python main.py --region "${{ github.event.inputs.region }}"
           else
             python main.py
           fi
@@ -58,6 +40,6 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: monitor-log-\${{ github.run_id }}
+          name: monitor-log-${{ github.run_id }}
           path: monitor.log
           retention-days: 7
