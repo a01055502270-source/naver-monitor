@@ -1,0 +1,53 @@
+name: 🏡 부동산 모니터 (자동 스캔)
+
+on:
+  # KST 기준 7시~23시, 2시간 간격 (UTC = KST-9)
+  schedule:
+    - cron: '0 22,0,2,4,6,8,10,12,14 * * *'
+  # 수동 실행 (GitHub Actions 탭 → Run workflow)
+  workflow_dispatch:
+    inputs:
+      region:
+        description: '특정 지역만 실행 (비우면 전체)'
+        required: false
+        default: ''
+
+jobs:
+  monitor:
+    name: 매물 스캔
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+
+    steps:
+      - name: 📥 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 🐍 Python 3.11 설정
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: 📦 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 🔍 매물 스캔
+        env:
+          SUPABASE_URL:         ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TELEGRAM_BOT_TOKEN:   ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID:     ${{ secrets.TELEGRAM_CHAT_ID }}
+        run: |
+          if [ -n "${{ github.event.inputs.region }}" ]; then
+            python main.py --region "${{ github.event.inputs.region }}"
+          else
+            python main.py
+          fi
+
+      - name: 📋 로그 아티팩트 저장 (실패 시 디버깅용)
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: monitor-log-${{ github.run_id }}
+          path: monitor.log
+          retention-days: 7
