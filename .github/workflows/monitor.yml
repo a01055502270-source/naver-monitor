@@ -1,30 +1,43 @@
 name: "🏡 부동산 모니터 (자동 스캔)"
-
 on:
   schedule:
     - cron: '0 22,0,2,4,6,8,10,12,14 * * *'
   workflow_dispatch:
     inputs:
       region:
-        description: '특정 지역만 실행 (비우면 전체)'
+        description: '특정 지역만'
         required: false
         default: ''
-
 jobs:
   monitor:
-    name: 매물 스캔
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    timeout-minutes: 30
-
     steps:
-      - name: 📥 코드 체크아웃
-        uses: actions/checkout@v4
-
-      - name: 📦 의존성 설치
-        run: pip install -r requirements.txt
-
+      - uses: actions/checkout@v4
+      - run: pip install -r requirements.txt
+      - name: 🔬 API 접근성 테스트
+        run: |
+          python3 - << 'PYEOF'
+          import requests, time
+          tests = [
+            ("네이버 PC API (단지)",   "https://new.land.naver.com/api/complexes/8928", {}),
+            ("네이버 PC 지역코드",     "https://new.land.naver.com/api/regions/list?cortarNo=4100000000", {}),
+            ("직방 v2 원룸",           "https://apis.zigbang.com/v2/items?domain=zigbang&zoom=14&sales_type_in=전세&geohash=wydm&service_type_eq=원룸", {}),
+            ("직방 v2 new_villa",      "https://apis.zigbang.com/v2/items?domain=zigbang&zoom=14&sales_type_in=전세&geohash=wydm&new_villa=true", {}),
+            ("직방 v3 items",          "https://apis.zigbang.com/v3/items?domain=zigbang&geohash=wydm&service_type_eq=아파트", {}),
+            ("직방 property apt",      "https://apis.zigbang.com/property/zigbang/items?serviceType=전세&buildingType=아파트&zoom=11&lat=37.5596&lng=127.1935", {}),
+          ]
+          for name, url, params in tests:
+            try:
+              r = requests.get(url, params=params, timeout=10,
+                headers={"User-Agent":"Mozilla/5.0","Referer":"https://www.zigbang.com/"})
+              body = r.text[:100]
+              print(f"[{r.status_code}] {name}: {body[:80]}")
+            except Exception as e:
+              print(f"[ERR] {name}: {e}")
+            time.sleep(0.5)
+          PYEOF
       - name: 🔍 매물 스캔
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
@@ -37,12 +50,11 @@ jobs:
           else
             python main.py 2>&1 | tee run.log
           fi
-
       - name: 💾 결과 저장
         if: always()
         run: |
           git config user.email "actions@github.com"
           git config user.name "Actions"
           git add run.log 2>/dev/null || true
-          git diff --staged --quiet || git commit -m "log: scan result [skip ci]"
+          git diff --staged --quiet || git commit -m "log: scan [skip ci]"
           git push || true
