@@ -1,0 +1,29 @@
+
+=== 하남 미사동 (geohash=wydmw) ===
+  아파트 ID수: 0 (상세조회: 0개)
+  빌라 ID수: 0 (상세조회: 0개)
+
+=== 하남 감일동 (geohash=wydmj) ===
+  아파트 ID수: 0 (상세조회: 0개)
+  빌라 ID수: 0 (상세조회: 0개)
+
+=== 하남 덕풍·신장동 (geohash=wydmw) ===
+  아파트 ID수: 0 (상세조회: 0개)
+  빌라 ID수: 0 (상세조회: 0개)
+2026-06-05 12:41:37 [INFO] ▶ DB 모드: Supabase ☁
+2026-06-05 12:41:38 [INFO] HTTP Request: GET https://ymonlackeqptsnslzjls.supabase.co/rest/v1/listings?select=article_no&limit=1 "HTTP/2 200 OK"
+✅ Supabase 연결 확인
+2026-06-05 12:41:38 [INFO] 
+==================================================
+2026-06-05 12:41:38 [INFO] ▶ 하남 미사동 스캔 시작
+2026-06-05 12:41:38 [INFO]   [하남 미사동] geohash=wydmw
+2026-06-05 12:41:39 [ERROR]     ID 수집 실패 (아파트): 404 Client Error: Not Found for url: https://apis.zigbang.com/v2/items?deposit_gteq=0&domain=zigbang&geohash=wydmw&needHasNoFiltered=true&rent_gteq=0&sales_type_in=%EC%A0%84%EC%84%B8%7C%EC%9B%94%EC%84%B8&service_type_eq=%EC%95%84%ED%8C%8C%ED%8A%B8
+2026-06-05 12:41:39 [ERROR]     ID 수집 실패 (빌라): 404 Client Error: Not Found for url: https://apis.zigbang.com/v2/items?deposit_gteq=0&domain=zigbang&geohash=wydmw&needHasNoFiltered=true&rent_gteq=0&sales_type_in=%EC%A0%84%EC%84%B8%7C%EC%9B%94%EC%84%B8&service_type_eq=%EB%B9%8C%EB%9D%BC
+2026-06-05 12:41:39 [INFO]   [하남 미사동] 총 0건
+2026-06-05 12:41:39 [INFO]   정규화 0건 → 필터 통과 0건
+2026-06-05 12:41:39 [WARNING]   ⚠ 매물 0건. API 응답 구조를 확인하세요 (collector.py _parse_body)
+2026-06-05 12:41:39 [INFO] HTTP Request: GET https://ymonlackeqptsnslzjls.supabase.co/rest/v1/listings?select=article_no&status=eq.active&region_name=eq.%ED%95%98%EB%82%A8+%EB%AF%B8%EC%82%AC%EB%8F%99 "HTTP/2 200 OK"
+2026-06-05 12:41:39 [INFO]   신규 0건 / 변동 0건 / 소멸 0건
+2026-06-05 12:41:39 [INFO] HTTP Request: POST https://ymonlackeqptsnslzjls.supabase.co/rest/v1/run_log "HTTP/2 201 Created"
+2026-06-05 12:41:39 [INFO] 
+✅ 스캔 완료 — 신규 0건 / 변동 0건
