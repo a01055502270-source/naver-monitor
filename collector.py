@@ -99,12 +99,12 @@ def fetch_page(region: dict, page: int) -> Tuple[List[dict], bool]:
         params["cortarNo"] = region["cortar_no"]
 
     try:
-        resp = _session.get(BASE_URL, params=params, timeout=12)
+        resp = _session.get(BASE_URL, params=params, timeout=25)
 
         if resp.status_code == 429:
             logger.warning("Rate-limit(429) — 15초 대기 후 재시도")
             time.sleep(15)
-            resp = _session.get(BASE_URL, params=params, timeout=12)
+            resp = _session.get(BASE_URL, params=params, timeout=25)
 
         resp.raise_for_status()
         return _parse_body(resp.json())
