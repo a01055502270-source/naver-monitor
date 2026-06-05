@@ -5,8 +5,14 @@ processor.py — 정규화 · 필터링 · diff (신규/변동/소멸 탐지)
 import logging
 from typing import List, Tuple, Optional
 
+import os
 import config
-from db import get_article, get_active_nos_by_region
+
+# Supabase 환경이면 db_supabase, 아니면 로컬 SQLite
+if os.environ.get("SUPABASE_URL"):
+    from db_supabase import get_article, get_active_nos_by_region
+else:
+    from db import get_article, get_active_nos_by_region
 
 logger = logging.getLogger(__name__)
 
