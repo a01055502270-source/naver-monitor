@@ -16,46 +16,70 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install -r requirements.txt
-      - name: 🔬 직방 v3 파라미터 탐색
+      - name: 🔬 v3 심층 테스트
         run: |
           python3 - << 'PYEOF' | tee api_test.txt
           import requests, json, time
-          B = "https://apis.zigbang.com/v3/items"
-          H = {"User-Agent":"Mozilla/5.0","Referer":"https://www.zigbang.com/","Accept":"application/json"}
+          H = {
+            "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
+            "Referer": "https://www.zigbang.com/",
+            "Accept": "application/json, text/plain, */*",
+            "Accept-Language": "ko-KR,ko;q=0.9",
+            "Origin": "https://www.zigbang.com",
+          }
+          BASE = "https://apis.zigbang.com"
+
           tests = [
-            ("v3 기본(wydm)",         {"domain":"zigbang","geohash":"wydm"}),
-            ("v3 기본(wyd)",          {"domain":"zigbang","geohash":"wyd"}),
-            ("v3 원룸",               {"domain":"zigbang","geohash":"wydm","service_type_eq":"원룸"}),
-            ("v3 아파트",             {"domain":"zigbang","geohash":"wydm","service_type_eq":"아파트"}),
-            ("v3 빌라",               {"domain":"zigbang","geohash":"wydm","service_type_eq":"빌라"}),
-            ("v3 전세",               {"domain":"zigbang","geohash":"wydm","sales_type_in":"전세"}),
-            ("v3 전세+원룸",          {"domain":"zigbang","geohash":"wydm","sales_type_in":"전세","service_type_eq":"원룸"}),
-            ("v3 원룸 서울좌표",      {"domain":"zigbang","lat":37.5665,"lng":126.978,"zoom":13,"service_type_eq":"원룸","sales_type_in":"전세"}),
-            ("v3 no-domain",          {"geohash":"wydm","service_type_eq":"원룸"}),
-            ("v2 원룸 zoom없음",      None),  # v2 no zoom
+            # v3 POST 시도
+            ("v3 POST",        "POST", f"{BASE}/v3/items",
+             {"domain":"zigbang","geohash":"wydm","service_type_eq":"원룸"}, None),
+            # oneroomCode 기반 엔드포인트
+            ("v3 oneroomcode", "GET",  f"{BASE}/v3/items/list-by-oneroomcode",
+             {"domain":"zigbang","oneroomCodes[]":"wydm","checkAnyItemWithoutFilters":"true"}, None),
+            # 더 짧은 geohash
+            ("v3 geohash=wy",  "GET",  f"{BASE}/v3/items",
+             {"domain":"zigbang","geohash":"wy","service_type_eq":"원룸"}, None),
+            # v3 with needHasNoFiltered
+            ("v3+filtered",    "GET",  f"{BASE}/v3/items",
+             {"domain":"zigbang","geohash":"wydm","service_type_eq":"원룸","needHasNoFiltered":"true"}, None),
+            # 직방 내부 API 시도
+            ("직방 search",    "GET",  f"{BASE}/v2/search",
+             {"leaseYn":"N","q":"하남시","serviceType":"원룸"}, None),
+            # 직방 복합단지 조회
+            ("직방 complexes", "GET",  f"{BASE}/v2/complexes/markers",
+             {"domain":"zigbang","geohash":"wydm"}, None),
+            # v2 원룸 최신 geohash 방식
+            ("v2 원룸 세분화",  "GET",  f"{BASE}/v2/items",
+             {"domain":"zigbang","zoom":"14","sales_type_in":"전세","geohash":"wydm",
+              "service_type_eq":"원룸","deposit_gteq":"0","rent_gteq":"0"}, None),
           ]
-          for name, params in tests:
+
+          for name, method, url, params, body in tests:
             try:
-              url = B if params is not None else "https://apis.zigbang.com/v2/items"
-              if params is None:
-                params = {"domain":"zigbang","geohash":"wydm","needHasNoFiltered":"true","sales_type_in":"전세","service_type_eq":"원룸"}
-              r = requests.get(url, params=params, headers=H, timeout=8)
-              body = r.text[:200]
+              if method == "POST":
+                r = requests.post(url, json=params, headers=H, timeout=8)
+              else:
+                r = requests.get(url, params=params, headers=H, timeout=8)
               cnt = 0
+              sample = ""
               try:
                 j = r.json()
-                cnt = len(j.get("items", j.get("clusters",[])))
-              except:
-                pass
-              print(f"[{r.status_code}|{cnt}건] {name}")
-              if r.status_code == 200 and cnt > 0:
+                for key in ("items","clusters","complexes","result","data"):
+                  if key in j and isinstance(j[key], list):
+                    cnt = len(j[key])
+                    if cnt > 0:
+                      sample = f" | 샘플키: {list(j[key][0].keys())[:6]}"
+                    break
+              except: pass
+              print(f"[{r.status_code}|{cnt}건] {name}{sample}")
+              if cnt > 0:
                 j = r.json()
-                items = j.get("items", [])
-                if items:
-                  print(f"  샘플 키: {list(items[0].keys())[:8]}")
-                  print(f"  샘플: {items[0]}")
+                for key in ("items","clusters","complexes","result","data"):
+                  if key in j and j[key]:
+                    print(f"  → {j[key][0]}")
+                    break
             except Exception as e:
-              print(f"[ERR] {name}: {str(e)[:80]}")
+              print(f"[ERR] {name}: {str(e)[:100]}")
             time.sleep(0.3)
           PYEOF
       - name: 💾 결과 저장
@@ -64,5 +88,5 @@ jobs:
           git config user.email "actions@github.com"
           git config user.name "Actions"
           git add api_test.txt 2>/dev/null || true
-          git diff --staged --quiet || git commit -m "log: v3 test [skip ci]"
+          git diff --staged --quiet || git commit -m "log: v3 deep test [skip ci]"
           git push || true
