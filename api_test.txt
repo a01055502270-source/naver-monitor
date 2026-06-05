@@ -1,37 +1,10 @@
-[ERR] 네이버 PC API: HTTPSConnectionPool(host='new.land.naver.com', port=443): Read timed out. (read 
-[ERR] 네이버 지역코드: HTTPSConnectionPool(host='new.land.naver.com', port=443): Read timed out. (read 
-[404] 직방 원룸
-    {"name":"Error","code":404,"message":"Cannot GET /v2/items?domain=zigbang&zoom=14&sales_type_in=%EC%A0%84%EC%84%B8&geohash=wydm&service_type_eq=%EC%9B
-[404] 직방 new_villa
-    {"name":"Error","code":404,"message":"Cannot GET /v2/items?domain=zigbang&zoom=14&sales_type_in=%EC%A0%84%EC%84%B8&geohash=wydm&new_villa=true"}
-[200] 직방 v3
-    {"items":[]}
-[404] 직방 property
-    <!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="utf-8">
-<title>Error</title>
-</head>
-<body>
-<pre>Cannot GET /property/zigbang/items</pre>
-</bod
-2026-06-05 12:50:57 [INFO] ▶ DB 모드: Supabase ☁
-2026-06-05 12:50:57 [INFO] HTTP Request: GET https://ymonlackeqptsnslzjls.supabase.co/rest/v1/listings?select=article_no&limit=1 "HTTP/2 200 OK"
-✅ Supabase 연결 확인
-2026-06-05 12:50:57 [INFO] 
-==================================================
-2026-06-05 12:50:57 [INFO] ▶ 하남 미사동 스캔 시작
-2026-06-05 12:50:57 [INFO]   [하남 미사동] geohash4=wydm geohash5=wydmw
-2026-06-05 12:50:58 [INFO]     빌라(전세) geohash=wydm: 0건 (HTTP 404)
-2026-06-05 12:50:58 [INFO]     아파트 단지 API HTTP 404 — 스킵
-2026-06-05 12:50:59 [INFO]     빌라(월세) geohash=wydm: 0건 (HTTP 404)
-2026-06-05 12:51:00 [INFO]     아파트 단지 API HTTP 404 — 스킵
-2026-06-05 12:51:00 [INFO]   [하남 미사동] 총 0건
-2026-06-05 12:51:00 [INFO]   정규화 0건 → 필터 통과 0건
-2026-06-05 12:51:00 [WARNING]   ⚠ 매물 0건. API 응답 구조를 확인하세요 (collector.py _parse_body)
-2026-06-05 12:51:00 [INFO] HTTP Request: GET https://ymonlackeqptsnslzjls.supabase.co/rest/v1/listings?select=article_no&status=eq.active&region_name=eq.%ED%95%98%EB%82%A8+%EB%AF%B8%EC%82%AC%EB%8F%99 "HTTP/2 200 OK"
-2026-06-05 12:51:00 [INFO]   신규 0건 / 변동 0건 / 소멸 0건
-2026-06-05 12:51:01 [INFO] HTTP Request: POST https://ymonlackeqptsnslzjls.supabase.co/rest/v1/run_log "HTTP/2 201 Created"
-2026-06-05 12:51:01 [INFO] 
-✅ 스캔 완료 — 신규 0건 / 변동 0건
+[200|0건] v3 기본(wydm)
+[200|0건] v3 기본(wyd)
+[200|0건] v3 원룸
+[200|0건] v3 아파트
+[200|0건] v3 빌라
+[200|0건] v3 전세
+[200|0건] v3 전세+원룸
+[200|0건] v3 원룸 서울좌표
+[200|0건] v3 no-domain
+[404|0건] v2 원룸 zoom없음
