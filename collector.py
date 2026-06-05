@@ -1,141 +1,107 @@
 """
-collector.py — 네이버 부동산 모바일 API 호출 + 전 페이지 수집
+collector.py — 직방 API 기반 매물 수집기 (Naver 대체)
 
-사용 엔드포인트: m.land.naver.com/cluster/ajax/articleList
- - Bearer 토큰 불필요 (headers + session cookie 만으로 동작)
- - bbox(좌표 범위) + 필터 파라미터로 개별 매물 반환
- - 응답 구조: {"isMoreData": bool, "body": [...], ...}
+직방은 GitHub Actions(미국 서버)에서도 차단 없이 접근 가능.
+두 단계:
+  1. GET /v2/items         → geohash + 조건으로 item_id 목록 수집
+  2. POST /v2/items/list   → item_id로 상세 정보 배치 수집
 """
 
-import time
-import random
-import logging
-from typing import List, Tuple
-
+import time, logging
+from typing import List
 import requests
-
+import geohash2
 import config
 
 logger = logging.getLogger(__name__)
 
-BASE_URL = "https://m.land.naver.com/cluster/ajax/articleList"
-
-# 실제 모바일 Chrome UA 로 위장
-_HEADERS = {
-    "User-Agent": (
-        "Mozilla/5.0 (Linux; Android 13; SM-S901N) "
-        "AppleWebKit/537.36 (KHTML, like Gecko) "
-        "Chrome/120.0.6099.144 Mobile Safari/537.36"
-    ),
-    "Accept":          "application/json, text/javascript, */*; q=0.01",
-    "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8",
-    "Accept-Encoding": "gzip, deflate, br",
-    "Referer":         "https://m.land.naver.com/",
-    "X-Requested-With": "XMLHttpRequest",
-    "Sec-Fetch-Site":  "same-origin",
-    "Sec-Fetch-Mode":  "cors",
-    "Sec-Fetch-Dest":  "empty",
+API_BASE = "https://apis.zigbang.com"
+HEADERS  = {
+    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) "
+                  "AppleWebKit/605.1.15 (KHTML, like Gecko) Mobile/15E148",
+    "Accept":          "application/json",
+    "Accept-Language": "ko-KR,ko;q=0.9",
+    "Referer":         "https://www.zigbang.com/",
+    "Origin":          "https://www.zigbang.com",
 }
 
-# Session 을 재사용해 쿠키 유지 (봇 탐지 완화)
-_session = requests.Session()
-_session.headers.update(_HEADERS)
+# 수집할 서비스 유형
+SERVICE_TYPES = ["아파트", "빌라"]
 
 
-def _bbox(region: dict) -> dict:
-    lat, lon = region["lat"], region["lon"]
-    d_lat    = config.BBOX_DELTA_LAT
-    d_lon    = config.BBOX_DELTA_LON
-    return {
-        "btm": round(lat - d_lat, 7),
-        "lft": round(lon - d_lon, 7),
-        "top": round(lat + d_lat, 7),
-        "rgt": round(lon + d_lon, 7),
-    }
-
-
-def _parse_body(data: dict) -> Tuple[List[dict], bool]:
-    """응답 JSON 에서 매물 목록과 '더 있는지' 여부를 추출.
-
-    Naver 는 API 버전에 따라 key 가 다를 수 있으므로 여러 key 를 시도.
-    처음 실행 시 로그에 찍히는 'unknown keys' 를 보고 맞춰 넣을 것.
-    """
-    articles = None
-    for key in ("body", "articleList", "result", "items", "data"):
-        val = data.get(key)
-        if isinstance(val, list):
-            articles = val
-            break
-
-    if articles is None:
-        logger.debug(f"알 수 없는 응답 구조 — 최상위 keys: {list(data.keys())}")
-        logger.debug(f"응답 앞 200자: {str(data)[:200]}")
-        articles = []
-
-    is_more = bool(data.get("isMoreData", False))
-    # isMoreData 키가 없을 경우 페이지 꽉 찬 경우(20건)면 더 있다고 가정
-    if "isMoreData" not in data:
-        is_more = len(articles) >= 20
-
-    return articles, is_more
-
-
-def fetch_page(region: dict, page: int) -> Tuple[List[dict], bool]:
-    """단일 페이지 요청 → (articles, is_more)."""
-    params = {
-        "rletTpCd": config.RLET_TP,
-        "tradTpCd": config.TRAD_TP,
-        "z":        config.ZOOM,
-        "lat":      region["lat"],
-        "lon":      region["lon"],
-        **_bbox(region),
-        "spcMin":   int(config.AREA_MIN_M2),   # 전용면적 하한 (API 파라미터)
-        "spcMax":   int(config.AREA_MAX_M2),   # 전용면적 상한
-        "showR0":   "",
-        "page":     page,
-    }
-    # cortarNo 가 설정된 경우 추가 필터로 사용
-    if region.get("cortar_no"):
-        params["cortarNo"] = region["cortar_no"]
-
+def _get_ids(geohash: str, service_type: str) -> List[int]:
+    """geohash + 서비스 유형으로 item_id 목록 반환."""
     try:
-        resp = _session.get(BASE_URL, params=params, timeout=25)
-
-        if resp.status_code == 429:
-            logger.warning("Rate-limit(429) — 15초 대기 후 재시도")
-            time.sleep(15)
-            resp = _session.get(BASE_URL, params=params, timeout=25)
-
-        resp.raise_for_status()
-        return _parse_body(resp.json())
-
-    except requests.exceptions.HTTPError as e:
-        logger.error(f"HTTP {e.response.status_code} | {region['name']} p{page}")
-        return [], False
-    except requests.exceptions.RequestException as e:
-        logger.error(f"요청 실패 | {region['name']} p{page}: {e}")
-        return [], False
+        r = requests.get(
+            f"{API_BASE}/v2/items",
+            params={
+                "deposit_gteq":      0,
+                "domain":            "zigbang",
+                "geohash":           geohash,
+                "needHasNoFiltered": "true",
+                "rent_gteq":         0,
+                "sales_type_in":     "전세|월세",
+                "service_type_eq":   service_type,
+            },
+            headers=HEADERS,
+            timeout=20,
+        )
+        r.raise_for_status()
+        items = r.json().get("items", [])
+        logger.info(f"    {service_type}: {len(items)}건 ID 수집")
+        # 디버그: 첫 항목 구조 확인
+        if items:
+            logger.debug(f"    샘플 item: {list(items[0].keys())}")
+        return [it["item_id"] for it in items if "item_id" in it]
     except Exception as e:
-        logger.error(f"파싱 오류 | {region['name']} p{page}: {e}")
-        return [], False
+        logger.error(f"    ID 수집 실패 ({service_type}): {e}")
+        return []
+
+
+def _get_details(ids: List[int]) -> List[dict]:
+    """item_id 리스트 → 상세 정보 배치 수집 (100개씩)."""
+    all_items = []
+    for i in range(0, len(ids), 100):
+        batch = ids[i:i+100]
+        try:
+            r = requests.post(
+                f"{API_BASE}/v2/items/list",
+                params={"domain": "zigbang", "withCoalition": "true", "item_ids": batch},
+                headers=HEADERS,
+                timeout=20,
+            )
+            r.raise_for_status()
+            items = r.json().get("items", [])
+            all_items.extend(items)
+            # 디버그: 첫 배치의 첫 항목 구조
+            if i == 0 and items:
+                logger.debug(f"    상세 샘플 keys: {list(items[0].keys())}")
+                logger.debug(f"    상세 샘플 값: {items[0]}")
+            if i > 0:
+                time.sleep(0.4)
+        except Exception as e:
+            logger.error(f"    상세 수집 실패 (batch {i//100+1}): {e}")
+    return all_items
 
 
 def collect_region(region: dict) -> List[dict]:
-    """한 지역의 전 페이지를 순회해 원시 매물 dict 목록 반환."""
-    all_articles: List[dict] = []
+    """한 지역 전·월세 아파트+빌라 전체 수집."""
+    lat, lon = region["lat"], region["lon"]
+    gh = geohash2.encode(lat, lon, precision=5)
+    logger.info(f"  [{region['name']}] geohash={gh}")
 
-    for page in range(1, config.MAX_PAGES + 1):
-        articles, is_more = fetch_page(region, page)
-        all_articles.extend(articles)
-        logger.info(
-            f"  [{region['name']}] p{page}: {len(articles)}건 "
-            f"(누적 {len(all_articles)}) {'→ 계속' if is_more else '→ 완료'}"
-        )
+    all_raw = []
+    for svc in SERVICE_TYPES:
+        ids = _get_ids(gh, svc)
+        if not ids:
+            continue
+        details = _get_details(ids)
+        for item in details:
+            item["_service_type"] = "APT" if svc == "아파트" else "VL"
+            item["_region_name"]  = region["name"]
+            item["_cortar_no"]    = region.get("cortar_no", "")
+        all_raw.extend(details)
+        time.sleep(0.5)
 
-        if not is_more:
-            break
-
-        # 페이지 간 랜덤 딜레이 (anti-bot)
-        time.sleep(random.uniform(*config.REQUEST_DELAY))
-
-    return all_articles
+    logger.info(f"  [{region['name']}] 총 {len(all_raw)}건")
+    return all_raw
