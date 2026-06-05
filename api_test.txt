@@ -1,8 +1,18 @@
-[404|0건] v3 POST
-[404|0건] v3 oneroomcode
-[200|0건] v3 geohash=wy
-[200|0건] v3+filtered
-[200|49건] 직방 search | 샘플키: ['id', 'type', 'name', 'hint', 'description', 'lat']
-  → {'id': 8263, 'type': 'address', 'name': '하남시', 'hint': '', 'description': '경기도 하남시', 'lat': 37.5393028259277, 'lng': 127.214874267578, 'zoom': 7, 'polygon': [], '_score': None, '_source': {'name_length': 3, 'local1': '경기도', 'local2': '하남시', 'local3': None, 'web_level': 14, 'web_lat': 37.5393028259277, 'web_lng': 127.214874267578, 'app_level': 13, 'app_lat': 37.5393028259277, 'app_lng': 127.214874267578, '법정동코드': '4145000000'}, 'zoom_level': {'google': 13, 'daum': 6}, 'zoom_level_v2': {'app': 8, 'web': 6}}
-[404|0건] 직방 complexes
-[404|0건] v2 원룸 세분화
+=== 직방 페이지 토큰 탐색 ===
+메인 페이지: 200
+  쿠키: {}
+
+=== 직방 v3 쿠키 포함 시도 ===
+[200|0건] v3 원룸 기본
+[200|0건] v3 원룸 wyd
+[200|0건] v3 원룸 checkAll
+[200|0건] v3 빌라 checkAll
+[200|0건] v3 아파트 check
+
+=== 호갱노노 API 테스트 ===
+[404] ['v5', 'complexes']
+  {"status":"error","message":"페이지를 찾을 수 없습니다.","code":404}
+[404] ['api', 'complexes']
+  {"status":"error","message":"페이지를 찾을 수 없습니다.","code":404}
+[404] ['v1', 'items']
+  {"status":"error","message":"페이지를 찾을 수 없습니다.","code":404}
