@@ -1,71 +1,32 @@
 name: "🏡 부동산 모니터 (자동 스캔)"
-
 on:
   schedule:
     - cron: '0 22,0,2,4,6,8,10,12,14 * * *'
   workflow_dispatch:
     inputs:
       region:
-        description: '특정 지역만 실행 (비우면 전체)'
+        description: '특정 지역만'
         required: false
         default: ''
-
 jobs:
   monitor:
-    name: 매물 스캔
     runs-on: ubuntu-latest
-    timeout-minutes: 30
-
+    permissions:
+      contents: write
     steps:
-      - name: 📥 코드 체크아웃
-        uses: actions/checkout@v4
-
-      - name: 📦 의존성 설치
-        run: pip install -r requirements.txt
-
-      - name: 🔬 직방 API 진단
-        run: |
-          python3 - << 'PYEOF'
-          import requests, geohash2
-          lat, lon = 37.5596, 127.1935
-          gh = geohash2.encode(lat, lon, precision=5)
-          print(f"geohash: {gh}")
-          r = requests.get("https://apis.zigbang.com/v2/items",
-            params={"deposit_gteq":0,"domain":"zigbang","geohash":gh,
-                    "needHasNoFiltered":"true","rent_gteq":0,
-                    "sales_type_in":"전세|월세","service_type_eq":"아파트"},
-            timeout=20)
-          items = r.json().get("items", [])
-          print(f"직방 응답: HTTP {r.status_code}, {len(items)}건")
-          if items:
-              s = items[0]
-              print(f"샘플 키: {list(s.keys())}")
-              ids = [i["item_id"] for i in items[:3]]
-              r2 = requests.post("https://apis.zigbang.com/v2/items/list",
-                params={"domain":"zigbang","withCoalition":"true","item_ids":ids},
-                timeout=20)
-              detail = r2.json().get("items",[])
-              if detail:
-                  print(f"상세 샘플: {detail[0]}")
-          PYEOF
-
-      - name: 🔍 매물 스캔
+      - uses: actions/checkout@v4
+      - run: pip install -r requirements.txt
+      - name: 🔬 진단
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          if [ -n "${{ github.event.inputs.region }}" ]; then
-            python main.py --region "${{ github.event.inputs.region }}"
-          else
-            python main.py
-          fi
-
-      - name: 📋 로그 저장 (항상)
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: monitor-log-${{ github.run_id }}
-          path: monitor.log
-          retention-days: 3
+          python diagnose.py > diagnostic.txt 2>&1
+          python main.py --region "${{ github.event.inputs.region }}" >> diagnostic.txt 2>&1 || true
+          git config user.email "actions@github.com"
+          git config user.name "Actions"
+          git add diagnostic.txt
+          git diff --staged --quiet || git commit -m "debug: diagnostic [skip ci]"
+          git push || true
