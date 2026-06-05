@@ -1,19 +1,19 @@
-2026-06-05 12:46:56 [INFO] ▶ DB 모드: Supabase ☁
-2026-06-05 12:46:57 [INFO] HTTP Request: GET https://ymonlackeqptsnslzjls.supabase.co/rest/v1/listings?select=article_no&limit=1 "HTTP/2 200 OK"
+2026-06-05 12:49:06 [INFO] ▶ DB 모드: Supabase ☁
+2026-06-05 12:49:07 [INFO] HTTP Request: GET https://ymonlackeqptsnslzjls.supabase.co/rest/v1/listings?select=article_no&limit=1 "HTTP/2 200 OK"
 ✅ Supabase 연결 확인
-2026-06-05 12:46:57 [INFO] 
+2026-06-05 12:49:07 [INFO] 
 ==================================================
-2026-06-05 12:46:57 [INFO] ▶ 하남 미사동 스캔 시작
-2026-06-05 12:46:57 [INFO]   [하남 미사동] geohash4=wydm geohash5=wydmw
-2026-06-05 12:46:57 [INFO]     빌라(전세) geohash=wydm: 0건 (HTTP 404)
-2026-06-05 12:46:58 [INFO]     아파트 단지 API HTTP 404 — 스킵
-2026-06-05 12:46:58 [INFO]     빌라(월세) geohash=wydm: 0건 (HTTP 404)
-2026-06-05 12:46:59 [INFO]     아파트 단지 API HTTP 404 — 스킵
-2026-06-05 12:46:59 [INFO]   [하남 미사동] 총 0건
-2026-06-05 12:46:59 [INFO]   정규화 0건 → 필터 통과 0건
-2026-06-05 12:46:59 [WARNING]   ⚠ 매물 0건. API 응답 구조를 확인하세요 (collector.py _parse_body)
-2026-06-05 12:47:00 [INFO] HTTP Request: GET https://ymonlackeqptsnslzjls.supabase.co/rest/v1/listings?select=article_no&status=eq.active&region_name=eq.%ED%95%98%EB%82%A8+%EB%AF%B8%EC%82%AC%EB%8F%99 "HTTP/2 200 OK"
-2026-06-05 12:47:00 [INFO]   신규 0건 / 변동 0건 / 소멸 0건
-2026-06-05 12:47:00 [INFO] HTTP Request: POST https://ymonlackeqptsnslzjls.supabase.co/rest/v1/run_log "HTTP/2 201 Created"
-2026-06-05 12:47:00 [INFO] 
+2026-06-05 12:49:07 [INFO] ▶ 하남 미사동 스캔 시작
+2026-06-05 12:49:07 [INFO]   [하남 미사동] geohash4=wydm geohash5=wydmw
+2026-06-05 12:49:07 [INFO]     빌라(전세) geohash=wydm: 0건 (HTTP 404)
+2026-06-05 12:49:07 [INFO]     아파트 단지 API HTTP 404 — 스킵
+2026-06-05 12:49:08 [INFO]     빌라(월세) geohash=wydm: 0건 (HTTP 404)
+2026-06-05 12:49:09 [INFO]     아파트 단지 API HTTP 404 — 스킵
+2026-06-05 12:49:09 [INFO]   [하남 미사동] 총 0건
+2026-06-05 12:49:09 [INFO]   정규화 0건 → 필터 통과 0건
+2026-06-05 12:49:09 [WARNING]   ⚠ 매물 0건. API 응답 구조를 확인하세요 (collector.py _parse_body)
+2026-06-05 12:49:09 [INFO] HTTP Request: GET https://ymonlackeqptsnslzjls.supabase.co/rest/v1/listings?select=article_no&status=eq.active&region_name=eq.%ED%95%98%EB%82%A8+%EB%AF%B8%EC%82%AC%EB%8F%99 "HTTP/2 200 OK"
+2026-06-05 12:49:09 [INFO]   신규 0건 / 변동 0건 / 소멸 0건
+2026-06-05 12:49:09 [INFO] HTTP Request: POST https://ymonlackeqptsnslzjls.supabase.co/rest/v1/run_log "HTTP/2 201 Created"
+2026-06-05 12:49:09 [INFO] 
 ✅ 스캔 완료 — 신규 0건 / 변동 0건
