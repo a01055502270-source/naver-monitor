@@ -1,0 +1,303 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="매물 모니터">
+<title>🏡 매물 모니터</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;background:#F0F2F5;min-height:100vh;max-width:480px;margin:0 auto}
+.hd{background:#1A1A2E;padding:16px 16px 14px;position:sticky;top:0;z-index:10;padding-top:max(16px,env(safe-area-inset-top))}
+.hd-row{display:flex;justify-content:space-between;align-items:flex-start}
+.hd-title{color:#fff;font-weight:700;font-size:18px;letter-spacing:-.5px}
+.hd-sub{color:#7878AA;font-size:11px;margin-top:3px}
+.hd-btn{background:rgba(255,255,255,.12);border:none;color:#fff;border-radius:99px;padding:7px 14px;cursor:pointer;font-size:13px;font-family:inherit}
+.hd-stats{display:flex;gap:16px;margin-top:14px}
+.stat{text-align:center}.stat-val{font-weight:700;font-size:20px;line-height:1}.stat-lbl{color:#7878AA;font-size:10px;margin-top:2px}
+.body{padding:12px 14px 40px}
+.scroll-row{display:flex;gap:6px;overflow-x:auto;padding-bottom:8px;scrollbar-width:none}
+.scroll-row::-webkit-scrollbar{display:none}
+.pill{padding:6px 14px;border-radius:99px;font-size:13px;border:none;cursor:pointer;white-space:nowrap;font-family:inherit;transition:all .15s}
+.pill-off{background:#fff;color:#868E96;border:1px solid #E9ECEF}
+.sort-row{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
+.sort-btn{padding:4px 11px;border-radius:99px;font-size:12px;border:none;cursor:pointer;font-family:inherit;background:transparent;color:#868E96}
+.sort-on{background:#1A1A2E;color:#fff;font-weight:600}
+.cnt{font-size:12px;color:#868E96}
+.card{background:#fff;border-radius:16px;margin-bottom:10px;overflow:hidden;box-shadow:0 1px 6px rgba(0,0,0,.07);display:flex}
+.card-body{flex:1;padding:14px 14px 12px 12px}
+.card-top{display:flex;justify-content:space-between;align-items:center;margin-bottom:5px}
+.card-region{display:flex;align-items:center;gap:5px}
+.badge-new{font-size:10px;font-weight:700;background:#C92A2A;color:#fff;border-radius:99px;padding:2px 6px}
+.region-txt{font-size:11px;color:#868E96}
+.badge-type{font-size:11px;font-weight:600;padding:2px 7px;border-radius:99px}
+.badge-apt{background:#F3F0FF;color:#5F3DC4}
+.badge-vl{background:#EBFBEE;color:#087F5B}
+.card-name{font-weight:700;font-size:15px;color:#1A1A2E;margin-bottom:3px;line-height:1.3}
+.card-bld{font-weight:400;color:#868E96;font-size:13px;margin-left:5px}
+.card-price{font-size:20px;font-weight:800;margin-bottom:6px;letter-spacing:-.3px}
+.price-j{color:#1864AB}.price-w{color:#D9480F}
+.card-info{display:flex;gap:10px;font-size:12px;color:#868E96;margin-bottom:7px}
+.card-tags{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}
+.tag{font-size:11px;background:#F1F3F5;color:#495057;border-radius:99px;padding:3px 8px}
+.card-foot{display:flex;align-items:center;justify-content:space-between}
+.card-time{font-size:11px;color:#868E96}
+.card-link{font-size:12px;color:#1864AB;font-weight:600;text-decoration:none}
+.empty{text-align:center;padding:52px 0;color:#868E96}
+.empty-ico{font-size:32px;margin-bottom:8px}
+.loading{text-align:center;padding:52px 0;color:#868E96}
+/* Config modal */
+.overlay{position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:50;display:flex;align-items:flex-end}
+.sheet{width:100%;background:#fff;border-radius:24px 24px 0 0;padding:24px 20px max(40px,env(safe-area-inset-bottom))}
+.sheet-hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
+.sheet-title{font-weight:700;font-size:17px;color:#1A1A2E}
+.close-btn{background:none;border:none;font-size:22px;color:#868E96;cursor:pointer;line-height:1}
+.err-box{background:#FFF5F5;color:#C92A2A;padding:12px;border-radius:10px;margin-bottom:14px;font-size:13px}
+.field{margin-bottom:14px}
+.field label{font-size:13px;font-weight:600;color:#1A1A2E;display:block;margin-bottom:5px}
+.field input{width:100%;border:1.5px solid #E9ECEF;border-radius:10px;padding:11px 12px;font-size:13px;outline:none;font-family:inherit}
+.field input:focus{border-color:#1A1A2E}
+.connect-btn{width:100%;background:#1A1A2E;color:#fff;border:none;border-radius:12px;padding:14px;font-size:15px;font-weight:600;cursor:pointer;font-family:inherit;margin-bottom:10px}
+.connect-btn:disabled{background:#CED4DA;cursor:default}
+.demo-btn{width:100%;background:none;border:none;color:#868E96;font-size:13px;cursor:pointer;padding:8px;font-family:inherit}
+.hint{margin-top:14px;padding:12px;background:#F8F9FA;border-radius:10px;font-size:11px;color:#868E96;line-height:1.7}
+.cta{text-align:center;margin-top:8px;padding:18px;background:#EEF2FF;border-radius:14px}
+.cta-txt{font-size:13px;color:#364FC7;font-weight:600;margin-bottom:8px}
+.cta-btn{background:#364FC7;color:#fff;border:none;border-radius:8px;padding:8px 18px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit}
+</style>
+</head>
+<body>
+<div id="app">
+  <!-- Header -->
+  <div class="hd">
+    <div class="hd-row">
+      <div>
+        <div class="hd-title">🏡 매물 모니터</div>
+        <div class="hd-sub" id="sub-txt">📋 데모 모드</div>
+      </div>
+      <div style="display:flex;gap:7px">
+        <button class="hd-btn" id="refresh-btn" style="display:none" onclick="loadData()">↺</button>
+        <button class="hd-btn" onclick="showConfig()">⚙ 연결</button>
+      </div>
+    </div>
+    <div class="hd-stats">
+      <div class="stat"><div class="stat-val" id="s-all" style="color:#fff">-</div><div class="stat-lbl">전체</div></div>
+      <div class="stat"><div class="stat-val" id="s-new" style="color:#FF8787">-</div><div class="stat-lbl">신규</div></div>
+      <div class="stat"><div class="stat-val" id="s-j" style="color:#74C0FC">-</div><div class="stat-lbl">전세</div></div>
+      <div class="stat"><div class="stat-val" id="s-w" style="color:#FFD43B">-</div><div class="stat-lbl">월세</div></div>
+    </div>
+  </div>
+
+  <!-- Config overlay -->
+  <div class="overlay" id="overlay" style="display:none">
+    <div class="sheet">
+      <div class="sheet-hd">
+        <span class="sheet-title">Supabase 연결</span>
+        <button class="close-btn" onclick="hideConfig()">✕</button>
+      </div>
+      <div class="err-box" id="err-box" style="display:none"></div>
+      <div class="field">
+        <label>Supabase Project URL</label>
+        <input type="url" id="inp-url" placeholder="https://xxxx.supabase.co">
+      </div>
+      <div class="field">
+        <label>Anon (Public) Key</label>
+        <input type="password" id="inp-key" placeholder="eyJ...">
+      </div>
+      <button class="connect-btn" id="conn-btn" onclick="doConnect()">연결하기</button>
+      <button class="demo-btn" onclick="useDemo()">데모 모드로 보기</button>
+      <div class="hint">
+        📌 Supabase → Project Settings → API에서 복사<br>
+        🔒 anon key는 읽기 전용이라 노출돼도 괜찮아<br>
+        💾 연결 후 주소창 URL을 북마크하면 자동 연결됨
+      </div>
+    </div>
+  </div>
+
+  <!-- Body -->
+  <div class="body">
+    <!-- Filters -->
+    <div class="scroll-row" id="filter-trade"></div>
+    <div class="scroll-row" id="filter-type"></div>
+    <div class="scroll-row" id="filter-region"></div>
+    <!-- Sort -->
+    <div class="sort-row">
+      <div id="sort-btns"></div>
+      <span class="cnt" id="cnt-txt"></span>
+    </div>
+    <!-- List -->
+    <div id="list"></div>
+  </div>
+</div>
+
+<script>
+// ── 상태 ──────────────────────────────────────────────────
+let SB_URL='', SB_KEY='', listings=[], isMock=true;
+let fTrade='all', fType='all', fRegion='all', fSort='new';
+
+// ── 목 데이터 ──────────────────────────────────────────────
+const T=Date.now();
+const MOCK=[
+  {article_no:'M1',region_name:'하남 미사동',real_estate_type:'APT',trade_type:'B1',complex_name:'미사강변도시6단지',building_name:'102동',deposit_manwon:29000,rent_manwon:0,area_excl_m2:84.9,floor_info:'14/25',direction:'남향',feature_desc:'역세권,방3개,주차편함',confirmed_date:'20260605',detail_url:'https://new.land.naver.com',first_seen_at:new Date(T-1*36e5).toISOString()},
+  {article_no:'M2',region_name:'강동 고덕동',real_estate_type:'APT',trade_type:'B2',complex_name:'고덕그라시움',building_name:'203동',deposit_manwon:5000,rent_manwon:175,area_excl_m2:59.9,floor_info:'7/20',direction:'동향',feature_desc:'학군좋음,방3개',confirmed_date:'20260604',detail_url:'https://new.land.naver.com',first_seen_at:new Date(T-5*36e5).toISOString()},
+  {article_no:'M3',region_name:'남양주 다산(지금동)',real_estate_type:'APT',trade_type:'B1',complex_name:'자연앤힐스테이트다산',building_name:'101동',deposit_manwon:17500,rent_manwon:0,area_excl_m2:59.0,floor_info:'5/18',direction:'남향',feature_desc:'신축,주차편함,방3개',confirmed_date:'20260603',detail_url:'https://new.land.naver.com',first_seen_at:new Date(T-26*36e5).toISOString()},
+  {article_no:'M4',region_name:'하남 감일동',real_estate_type:'VL',trade_type:'B2',complex_name:'감일역파크뷰빌라',building_name:'',deposit_manwon:3000,rent_manwon:90,area_excl_m2:55.0,floor_info:'3/7',direction:'남서향',feature_desc:'베란다,조용한',confirmed_date:'20260605',detail_url:'https://new.land.naver.com',first_seen_at:new Date(T-2*36e5).toISOString()},
+  {article_no:'M5',region_name:'강동 상일·강일동',real_estate_type:'APT',trade_type:'B1',complex_name:'강일리버파크7단지',building_name:'301동',deposit_manwon:19500,rent_manwon:0,area_excl_m2:59.5,floor_info:'11/15',direction:'남향',feature_desc:'한강조망,역세권,방3개',confirmed_date:'20260601',detail_url:'https://new.land.naver.com',first_seen_at:new Date(T-48*36e5).toISOString()},
+];
+
+// ── 유틸 ──────────────────────────────────────────────────
+function fmtPrice(dep,rent){
+  const w=v=>{if(!v)return'0';const a=Math.floor(v/1e4),m=v%1e4;return a?`${a}억${m?` ${m.toLocaleString()}`:''}`:v.toLocaleString()+'만'};
+  return rent>0?`월세 ${w(dep)} / ${rent}만`:`전세 ${w(dep)}`;
+}
+function isNew(ts){return ts&&Date.now()-new Date(ts).getTime()<24*36e5}
+function fmtAgo(ts){if(!ts)return'';const h=(Date.now()-new Date(ts).getTime())/36e5;return h<1?'방금':h<24?`${Math.floor(h)}시간 전`:`${Math.floor(h/24)}일 전`}
+function fmtConf(s){const d=String(s||'').replace(/\D/g,'').slice(0,8);return d.length===8?`${d.slice(2,4)}.${d.slice(4,6)}.${d.slice(6)}`:s||''}
+
+// ── Supabase fetch ─────────────────────────────────────────
+async function loadData(){
+  if(!SB_URL||!SB_KEY)return;
+  document.getElementById('list').innerHTML='<div class="loading">불러오는 중...</div>';
+  try{
+    const r=await fetch(`${SB_URL}/rest/v1/listings?select=*&status=eq.active&order=first_seen_at.desc&limit=300`,
+      {headers:{apikey:SB_KEY,Authorization:`Bearer ${SB_KEY}`}});
+    if(!r.ok)throw new Error(`오류 ${r.status}`);
+    const data=await r.json();
+    listings=Array.isArray(data)?data:[];
+    isMock=false;
+    document.getElementById('refresh-btn').style.display='';
+    document.getElementById('sub-txt').textContent=`🟢 실시간 · ${new Date().toLocaleTimeString('ko-KR',{hour:'2-digit',minute:'2-digit'})} 업데이트`;
+    // Save to URL hash
+    const hash=`url=${encodeURIComponent(SB_URL)}&key=${encodeURIComponent(SB_KEY)}`;
+    history.replaceState(null,'',`#${hash}`);
+    render();
+  }catch(e){
+    showErr(e.message);
+  }
+}
+
+// ── 렌더 ──────────────────────────────────────────────────
+function render(){
+  // Stats
+  const newCnt=listings.filter(l=>isNew(l.first_seen_at)).length;
+  const jCnt=listings.filter(l=>!l.rent_manwon||l.rent_manwon===0).length;
+  const wCnt=listings.filter(l=>l.rent_manwon>0).length;
+  document.getElementById('s-all').textContent=listings.length;
+  document.getElementById('s-new').textContent=newCnt;
+  document.getElementById('s-j').textContent=jCnt;
+  document.getElementById('s-w').textContent=wCnt;
+
+  // Filters
+  renderPills('filter-trade',[['all','전체'],['B1','전세'],['B2','월세']],fTrade,v=>{fTrade=v;render()},
+    {'all':'#495057','B1':'#1864AB','B2':'#D9480F'});
+  renderPills('filter-type',[['all','전부'],['APT','아파트'],['VL','빌라']],fType,v=>{fType=v;render()},
+    {'all':'#495057','APT':'#5F3DC4','VL':'#087F5B'});
+  const regions=[['all','전 지역'],...[...new Set(listings.map(l=>l.region_name))].map(r=>[r,r])];
+  renderPills('filter-region',regions,fRegion,v=>{fRegion=v;render()},null);
+
+  // Sort buttons
+  document.getElementById('sort-btns').innerHTML=
+    [['new','신규순'],['price','가격순'],['area','면적순']].map(([v,l])=>
+      `<button class="sort-btn ${fSort===v?'sort-on':''}" onclick="setSort('${v}')">${l}</button>`).join('');
+
+  // Filter + sort
+  let arr=[...listings];
+  if(fTrade!=='all')arr=arr.filter(l=>l.trade_type===fTrade);
+  if(fType!=='all')arr=arr.filter(l=>l.real_estate_type===fType);
+  if(fRegion!=='all')arr=arr.filter(l=>l.region_name===fRegion);
+  if(fSort==='new')arr.sort((a,b)=>new Date(b.first_seen_at)-new Date(a.first_seen_at));
+  if(fSort==='price')arr.sort((a,b)=>a.deposit_manwon-b.deposit_manwon);
+  if(fSort==='area')arr.sort((a,b)=>b.area_excl_m2-a.area_excl_m2);
+
+  document.getElementById('cnt-txt').textContent=`${arr.length}건`;
+
+  if(!arr.length){
+    document.getElementById('list').innerHTML='<div class="empty"><div class="empty-ico">🔍</div>조건에 맞는 매물이 없어요</div>';
+    return;
+  }
+
+  document.getElementById('list').innerHTML=arr.map(l=>{
+    const isJ=!l.rent_manwon||l.rent_manwon===0;
+    const pc=isJ?'#1864AB':'#D9480F';
+    const fresh=isNew(l.first_seen_at);
+    const feats=(l.feature_desc||'').split(',').filter(Boolean).slice(0,3);
+    const isApt=l.real_estate_type==='APT';
+    return `<div class="card" style="border-left:4px solid ${pc}">
+      <div class="card-body">
+        <div class="card-top">
+          <div class="card-region">
+            ${fresh?'<span class="badge-new">NEW</span>':''}
+            <span class="region-txt">${l.region_name}</span>
+          </div>
+          <span class="badge-type ${isApt?'badge-apt':'badge-vl'}">${isApt?'아파트':'빌라'}</span>
+        </div>
+        <div class="card-name">${l.complex_name}${l.building_name?`<span class="card-bld">${l.building_name}</span>`:''}</div>
+        <div class="card-price ${isJ?'price-j':'price-w'}">${fmtPrice(l.deposit_manwon,l.rent_manwon)}</div>
+        <div class="card-info">
+          ${l.area_excl_m2>0?`<span>전용 ${l.area_excl_m2}㎡</span>`:''}
+          ${l.floor_info?`<span>${l.floor_info}층</span>`:''}
+          ${l.direction?`<span>${l.direction}</span>`:''}
+        </div>
+        ${feats.length?`<div class="card-tags">${feats.map(f=>`<span class="tag">${f}</span>`).join('')}</div>`:''}
+        <div class="card-foot">
+          <span class="card-time">${fresh?`🕐 ${fmtAgo(l.first_seen_at)}`:`확인 ${fmtConf(l.confirmed_date)}`}</span>
+          <a class="card-link" href="${l.detail_url}" target="_blank">매물 보기 ↗</a>
+        </div>
+      </div>
+    </div>`;
+  }).join('') + (isMock?`<div class="cta"><div class="cta-txt">📡 Supabase 연결 시 실시간 데이터로 전환</div><button class="cta-btn" onclick="showConfig()">연결하기</button></div>`:'');
+}
+
+function renderPills(id,items,active,onChange,colors){
+  const el=document.getElementById(id);
+  el.innerHTML=items.map(([v,l])=>{
+    const isOn=active===v;
+    const bg=isOn?(colors?colors[v]||'#495057':'#495057'):'#fff';
+    const col=isOn?'#fff':'#868E96';
+    const brd=isOn?'none':'1px solid #E9ECEF';
+    return `<button class="pill" style="background:${bg};color:${col};border:${brd};font-weight:${isOn?600:400}" onclick="(${onChange.toString()})('${v}')">${l}</button>`;
+  }).join('');
+}
+
+function setSort(v){fSort=v;render()}
+
+// ── Config modal ───────────────────────────────────────────
+function showConfig(){document.getElementById('overlay').style.display='flex'}
+function hideConfig(){document.getElementById('overlay').style.display='none';document.getElementById('err-box').style.display='none'}
+function showErr(msg){const b=document.getElementById('err-box');b.textContent='⚠ '+msg;b.style.display='block'}
+function useDemo(){listings=MOCK;isMock=true;document.getElementById('sub-txt').textContent='📋 데모 모드';hideConfig();render()}
+
+async function doConnect(){
+  const url=document.getElementById('inp-url').value.trim();
+  const key=document.getElementById('inp-key').value.trim();
+  if(!url||!key)return;
+  document.getElementById('conn-btn').disabled=true;
+  document.getElementById('conn-btn').textContent='연결 중...';
+  SB_URL=url;SB_KEY=key;
+  await loadData();
+  document.getElementById('conn-btn').disabled=false;
+  document.getElementById('conn-btn').textContent='연결하기';
+  if(!isMock)hideConfig();
+}
+
+// ── 초기화 ─────────────────────────────────────────────────
+(function init(){
+  // URL hash에서 자격증명 읽기
+  const p=new URLSearchParams(location.hash.slice(1));
+  const u=p.get('url'),k=p.get('key');
+  if(u&&k){
+    SB_URL=decodeURIComponent(u);
+    SB_KEY=decodeURIComponent(k);
+    document.getElementById('inp-url').value=SB_URL;
+    document.getElementById('inp-key').value=SB_KEY;
+    loadData();
+  }else{
+    listings=MOCK;isMock=true;
+    render();
+  }
+})();
+</script>
+</body>
+</html>
