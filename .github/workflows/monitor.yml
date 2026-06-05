@@ -1,32 +1,48 @@
 name: "🏡 부동산 모니터 (자동 스캔)"
+
 on:
   schedule:
     - cron: '0 22,0,2,4,6,8,10,12,14 * * *'
   workflow_dispatch:
     inputs:
       region:
-        description: '특정 지역만'
+        description: '특정 지역만 실행 (비우면 전체)'
         required: false
         default: ''
+
 jobs:
   monitor:
+    name: 매물 스캔
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    timeout-minutes: 30
+
     steps:
-      - uses: actions/checkout@v4
-      - run: pip install -r requirements.txt
-      - name: 🔬 진단
+      - name: 📥 코드 체크아웃
+        uses: actions/checkout@v4
+
+      - name: 📦 의존성 설치
+        run: pip install -r requirements.txt
+
+      - name: 🔍 매물 스캔
         env:
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          python diagnose.py > diagnostic.txt 2>&1
-          python main.py --region "${{ github.event.inputs.region }}" >> diagnostic.txt 2>&1 || true
+          if [ -n "${{ github.event.inputs.region }}" ]; then
+            python main.py --region "${{ github.event.inputs.region }}" 2>&1 | tee run.log
+          else
+            python main.py 2>&1 | tee run.log
+          fi
+
+      - name: 💾 결과 저장
+        if: always()
+        run: |
           git config user.email "actions@github.com"
           git config user.name "Actions"
-          git add diagnostic.txt
-          git diff --staged --quiet || git commit -m "debug: diagnostic [skip ci]"
+          git add run.log 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "log: scan result [skip ci]"
           git push || true
