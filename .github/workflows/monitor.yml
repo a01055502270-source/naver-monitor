@@ -16,27 +16,28 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - run: pip install -r requirements.txt
-      - name: 🔬 API 접근성 테스트
+      - name: 🔬 API 테스트
         run: |
-          python3 - << 'PYEOF'
-          import requests, time
+          python3 - << 'PYEOF' | tee api_test.txt
+          import requests, time, json
           tests = [
-            ("네이버 PC API (단지)",   "https://new.land.naver.com/api/complexes/8928", {}),
-            ("네이버 PC 지역코드",     "https://new.land.naver.com/api/regions/list?cortarNo=4100000000", {}),
-            ("직방 v2 원룸",           "https://apis.zigbang.com/v2/items?domain=zigbang&zoom=14&sales_type_in=전세&geohash=wydm&service_type_eq=원룸", {}),
-            ("직방 v2 new_villa",      "https://apis.zigbang.com/v2/items?domain=zigbang&zoom=14&sales_type_in=전세&geohash=wydm&new_villa=true", {}),
-            ("직방 v3 items",          "https://apis.zigbang.com/v3/items?domain=zigbang&geohash=wydm&service_type_eq=아파트", {}),
-            ("직방 property apt",      "https://apis.zigbang.com/property/zigbang/items?serviceType=전세&buildingType=아파트&zoom=11&lat=37.5596&lng=127.1935", {}),
+            ("네이버 PC API",   "https://new.land.naver.com/api/complexes/8928"),
+            ("네이버 지역코드", "https://new.land.naver.com/api/regions/list?cortarNo=4100000000"),
+            ("직방 원룸",       "https://apis.zigbang.com/v2/items?domain=zigbang&zoom=14&sales_type_in=전세&geohash=wydm&service_type_eq=원룸"),
+            ("직방 new_villa",  "https://apis.zigbang.com/v2/items?domain=zigbang&zoom=14&sales_type_in=전세&geohash=wydm&new_villa=true"),
+            ("직방 v3",         "https://apis.zigbang.com/v3/items?domain=zigbang&geohash=wydm"),
+            ("직방 property",   "https://apis.zigbang.com/property/zigbang/items?serviceType=전세&buildingType=아파트&lat=37.55&lng=127.19&zoom=11"),
           ]
-          for name, url, params in tests:
+          hdrs = {"User-Agent":"Mozilla/5.0","Referer":"https://new.land.naver.com/","Accept":"application/json"}
+          for name, url in tests:
             try:
-              r = requests.get(url, params=params, timeout=10,
-                headers={"User-Agent":"Mozilla/5.0","Referer":"https://www.zigbang.com/"})
-              body = r.text[:100]
-              print(f"[{r.status_code}] {name}: {body[:80]}")
+              r = requests.get(url, timeout=8, headers=hdrs)
+              body = r.text[:150]
+              print(f"[{r.status_code}] {name}")
+              print(f"    {body}")
             except Exception as e:
-              print(f"[ERR] {name}: {e}")
-            time.sleep(0.5)
+              print(f"[ERR] {name}: {str(e)[:80]}")
+            time.sleep(0.3)
           PYEOF
       - name: 🔍 매물 스캔
         env:
@@ -45,16 +46,12 @@ jobs:
           TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
           TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          if [ -n "${{ github.event.inputs.region }}" ]; then
-            python main.py --region "${{ github.event.inputs.region }}" 2>&1 | tee run.log
-          else
-            python main.py 2>&1 | tee run.log
-          fi
+          python main.py --region "${{ github.event.inputs.region || '미사' }}" 2>&1 >> api_test.txt || true
       - name: 💾 결과 저장
         if: always()
         run: |
           git config user.email "actions@github.com"
           git config user.name "Actions"
-          git add run.log 2>/dev/null || true
-          git diff --staged --quiet || git commit -m "log: scan [skip ci]"
+          git add api_test.txt run.log 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "log: api test [skip ci]"
           git push || true
