@@ -1,85 +1,22 @@
-name: "🏡 부동산 모니터 (자동 스캔)"
+name: "🏡 부동산 모니터 (수동 실행용)"
 on:
-  schedule:
-    - cron: '0 22,0,2,4,6,8,10,12,14 * * *'
   workflow_dispatch:
     inputs:
       region:
-        description: '특정 지역만'
+        description: '특정 지역만 (비우면 전체)'
         required: false
         default: ''
 jobs:
   monitor:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write
     steps:
       - uses: actions/checkout@v4
       - run: pip install -r requirements.txt
-      - name: 🔬 토큰 추출 + v3 재시도
+      - name: 🔍 매물 스캔
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_KEY: ${{ secrets.SUPABASE_SERVICE_KEY }}
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ secrets.TELEGRAM_CHAT_ID }}
         run: |
-          python3 - << 'PYEOF' | tee api_test.txt
-          import requests, re, time, json
-
-          S = requests.Session()
-          S.headers.update({"User-Agent":"Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15","Referer":"https://www.zigbang.com/"})
-
-          # 1. 직방 메인 페이지에서 토큰/설정값 추출
-          print("=== 직방 페이지 토큰 탐색 ===")
-          try:
-            r = S.get("https://www.zigbang.com/", timeout=8)
-            print(f"메인 페이지: {r.status_code}")
-            # 토큰 패턴 검색
-            for pattern in [r'token["\']+:\s*["\']+([A-Za-z0-9._-]{20,})', r'apiKey["\']+:\s*["\']+([A-Za-z0-9._-]{10,})', r'accessToken["\']+:\s*["\']+([A-Za-z0-9._-]{20,})']:
-              matches = re.findall(pattern, r.text[:50000])
-              if matches:
-                print(f"  패턴 발견 ({pattern[:30]}...): {matches[:2]}")
-            # Set-Cookie 확인
-            print(f"  쿠키: {dict(r.cookies)}")
-          except Exception as e:
-            print(f"  오류: {e}")
-
-          # 2. 직방 API 직접 요청 (쿠키 포함)
-          print("\n=== 직방 v3 쿠키 포함 시도 ===")
-          tests_v3 = [
-            ("v3 원룸 기본",     {"domain":"zigbang","geohash":"wydm","service_type_eq":"원룸","zoom":14}),
-            ("v3 원룸 wyd",      {"domain":"zigbang","geohash":"wyd","service_type_eq":"원룸","zoom":11}),
-            ("v3 원룸 checkAll", {"domain":"zigbang","geohash":"wydm","service_type_eq":"원룸","checkAnyItemWithoutFilters":"true"}),
-            ("v3 빌라 checkAll", {"domain":"zigbang","geohash":"wydm","service_type_eq":"빌라","checkAnyItemWithoutFilters":"true"}),
-            ("v3 아파트 check",  {"domain":"zigbang","geohash":"wydm","service_type_eq":"아파트","checkAnyItemWithoutFilters":"true"}),
-          ]
-          for name, params in tests_v3:
-            try:
-              r = S.get("https://apis.zigbang.com/v3/items", params=params, timeout=8)
-              j = r.json()
-              cnt = len(j.get("items",[]))
-              print(f"[{r.status_code}|{cnt}건] {name}")
-              if cnt > 0:
-                print(f"  샘플: {j['items'][0]}")
-            except Exception as e:
-              print(f"[ERR] {name}: {e}")
-            time.sleep(0.2)
-
-          # 3. 호갱노노 API 테스트
-          print("\n=== 호갱노노 API 테스트 ===")
-          hgnn_tests = [
-            "https://hogangnono.com/api/v5/complexes?cortarNo=4179010900&tradeType=전세",
-            "https://hogangnono.com/api/complexes?lat=37.5596&lng=127.1935",
-            "https://hogangnono.com/api/v1/items?lat=37.5596&lng=127.1935&zoom=13",
-          ]
-          for url in hgnn_tests:
-            try:
-              r = requests.get(url, timeout=8, headers={"User-Agent":"Mozilla/5.0","Referer":"https://hogangnono.com/"})
-              print(f"[{r.status_code}] {url.split('?')[0].split('/')[-2:]}")
-              print(f"  {r.text[:150]}")
-            except Exception as e:
-              print(f"[ERR] {url}: {e}")
-          PYEOF
-      - name: 💾 결과 저장
-        if: always()
-        run: |
-          git config user.email "actions@github.com"
-          git config user.name "Actions"
-          git add api_test.txt 2>/dev/null || true
-          git diff --staged --quiet || git commit -m "log: token test [skip ci]"
-          git push || true
+          python main.py --region "${{ github.event.inputs.region }}" 2>&1 | head -100
