@@ -1,122 +1,118 @@
 """
-collector.py — 직방 API (빌라: new_villa=true, 아파트: 단지 API 시도)
+collector.py — 네이버 부동산 모바일 API 기반 매물 수집기
+
+한국 IP 환경(네이버 클라우드 서울 서버)에서 실행.
 """
-import time, logging
-from typing import List
+
+import time
+import random
+import logging
+from typing import List, Tuple
+
 import requests
-import geohash2
 import config
 
 logger = logging.getLogger(__name__)
 
-BASE = "https://apis.zigbang.com"
-HDR  = {
-    "User-Agent": "Mozilla/5.0 (iPhone; CPU iPhone OS 17_0 like Mac OS X) AppleWebKit/605.1.15",
-    "Accept": "application/json",
-    "Referer": "https://www.zigbang.com/",
+BASE_URL = "https://m.land.naver.com/cluster/ajax/articleList"
+
+_HEADERS = {
+    "User-Agent": (
+        "Mozilla/5.0 (Linux; Android 13; SM-S901N) "
+        "AppleWebKit/537.36 (KHTML, like Gecko) "
+        "Chrome/120.0.6099.144 Mobile Safari/537.36"
+    ),
+    "Accept":          "application/json, text/javascript, */*; q=0.01",
+    "Accept-Language": "ko-KR,ko;q=0.9,en-US;q=0.8",
+    "Accept-Encoding": "gzip, deflate, br",
+    "Referer":         "https://m.land.naver.com/",
+    "X-Requested-With": "XMLHttpRequest",
 }
 
+_session = requests.Session()
+_session.headers.update(_HEADERS)
 
-def _fetch_villa(gh4: str, trade: str) -> List[dict]:
-    """빌라·연립 — new_villa=true 파라미터."""
+
+def _bbox(region: dict) -> dict:
+    lat, lon = region["lat"], region["lon"]
+    d_lat = config.BBOX_DELTA_LAT
+    d_lon = config.BBOX_DELTA_LON
+    return {
+        "btm": round(lat - d_lat, 7),
+        "lft": round(lon - d_lon, 7),
+        "top": round(lat + d_lat, 7),
+        "rgt": round(lon + d_lon, 7),
+    }
+
+
+def _parse_body(data: dict) -> Tuple[List[dict], bool]:
+    articles = None
+    for key in ("body", "articleList", "result", "items", "data"):
+        val = data.get(key)
+        if isinstance(val, list):
+            articles = val
+            break
+
+    if articles is None:
+        logger.debug(f"알 수 없는 응답 구조 — 키: {list(data.keys())}")
+        articles = []
+
+    is_more = bool(data.get("isMoreData", False))
+    if "isMoreData" not in data:
+        is_more = len(articles) >= 20
+
+    return articles, is_more
+
+
+def fetch_page(region: dict, page: int) -> Tuple[List[dict], bool]:
+    params = {
+        "rletTpCd": config.RLET_TP,
+        "tradTpCd": config.TRAD_TP,
+        "z":        config.ZOOM,
+        "lat":      region["lat"],
+        "lon":      region["lon"],
+        **_bbox(region),
+        "spcMin":   int(config.AREA_MIN_M2),
+        "spcMax":   int(config.AREA_MAX_M2),
+        "showR0":   "",
+        "page":     page,
+    }
+    if region.get("cortar_no"):
+        params["cortarNo"] = region["cortar_no"]
+
     try:
-        r = requests.get(f"{BASE}/v2/items",
-            params={"domain": "zigbang", "zoom": 14,
-                    "sales_type_in": trade,
-                    "deposit_lteq": config.DEPOSIT_MAX_MANWON,
-                    "rent_lteq":    config.RENT_MAX_MANWON,
-                    "new_villa": "true",
-                    "geohash":   gh4},
-            headers=HDR, timeout=20)
-        items = r.json().get("items", [])
-        logger.info(f"    빌라({trade}) geohash={gh4}: {len(items)}건 (HTTP {r.status_code})")
-        return items
+        resp = _session.get(BASE_URL, params=params, timeout=25)
+
+        if resp.status_code == 429:
+            logger.warning("Rate-limit(429) — 15초 대기")
+            time.sleep(15)
+            resp = _session.get(BASE_URL, params=params, timeout=25)
+
+        resp.raise_for_status()
+        return _parse_body(resp.json())
+
+    except requests.exceptions.HTTPError as e:
+        logger.error(f"HTTP {e.response.status_code} | {region['name']} p{page}")
+        return [], False
     except Exception as e:
-        logger.error(f"    빌라 수집 실패: {e}")
-        return []
-
-
-def _fetch_apt(gh4: str, trade: str) -> List[dict]:
-    """아파트 — 단지 마커 → 매물 조회."""
-    try:
-        # 단지 목록 조회
-        r = requests.get(f"{BASE}/v2/complexes/markers",
-            params={"domain": "zigbang", "geohash": gh4,
-                    "sales_type_in": trade},
-            headers=HDR, timeout=20)
-        if r.status_code != 200:
-            logger.info(f"    아파트 단지 API HTTP {r.status_code} — 스킵")
-            return []
-        complexes = r.json().get("complexes", r.json().get("markers", []))
-        logger.info(f"    아파트 단지: {len(complexes)}개")
-
-        ids = []
-        for cx in complexes[:20]:
-            cid = cx.get("complex_id") or cx.get("id")
-            if cid:
-                r2 = requests.get(f"{BASE}/v2/complexes/{cid}/items",
-                    params={"domain":"zigbang","sales_type_in":trade},
-                    headers=HDR, timeout=15)
-                if r2.status_code == 200:
-                    for item in r2.json().get("items", []):
-                        item["_complex"] = cx.get("name","")
-                        ids.append(item)
-                time.sleep(0.3)
-        logger.info(f"    아파트 매물: {len(ids)}건")
-        return ids
-    except Exception as e:
-        logger.error(f"    아파트 수집 실패: {e}")
-        return []
-
-
-def _get_details(item_ids: List[int]) -> List[dict]:
-    """item_id 목록 → 상세 배치 조회."""
-    if not item_ids:
-        return []
-    all_items = []
-    for i in range(0, len(item_ids), 100):
-        batch = item_ids[i:i+100]
-        try:
-            r = requests.post(f"{BASE}/v2/items/list",
-                params={"domain":"zigbang","withCoalition":"true","item_ids":batch},
-                headers=HDR, timeout=20)
-            all_items.extend(r.json().get("items", []))
-            if i > 0:
-                time.sleep(0.4)
-        except Exception as e:
-            logger.error(f"    상세 조회 실패: {e}")
-    return all_items
+        logger.error(f"요청 실패 | {region['name']} p{page}: {e}")
+        return [], False
 
 
 def collect_region(region: dict) -> List[dict]:
-    lat, lon = region["lat"], region["lon"]
-    gh4 = geohash2.encode(lat, lon, precision=4)  # 더 넓은 범위
-    gh5 = geohash2.encode(lat, lon, precision=5)
-    logger.info(f"  [{region['name']}] geohash4={gh4} geohash5={gh5}")
+    all_articles: List[dict] = []
 
-    all_raw = []
+    for page in range(1, config.MAX_PAGES + 1):
+        articles, is_more = fetch_page(region, page)
+        all_articles.extend(articles)
+        logger.info(
+            f"  [{region['name']}] p{page}: {len(articles)}건 "
+            f"(누적 {len(all_articles)}) {'→ 계속' if is_more else '→ 완료'}"
+        )
 
-    for trade in ["전세", "월세"]:
-        # 빌라
-        villas = _fetch_villa(gh4, trade)
-        ids    = [v["item_id"] for v in villas if "item_id" in v]
-        if ids:
-            details = _get_details(ids)
-            for d in details:
-                d["_service_type"] = "VL"
-                d["_region_name"]  = region["name"]
-                d["_cortar_no"]    = region.get("cortar_no", "")
-            all_raw.extend(details)
+        if not is_more:
+            break
 
-        # 아파트
-        apts = _fetch_apt(gh4, trade)
-        for a in apts:
-            a["_service_type"] = "APT"
-            a["_region_name"]  = region["name"]
-            a["_cortar_no"]    = region.get("cortar_no", "")
-        all_raw.extend(apts)
+        time.sleep(random.uniform(*config.REQUEST_DELAY))
 
-        time.sleep(0.5)
-
-    logger.info(f"  [{region['name']}] 총 {len(all_raw)}건")
-    return all_raw
+    return all_articles
